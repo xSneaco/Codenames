@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output (will be generated in container)
+dist/
+build/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment files (handled by docker-compose)
+.env
+.env.*
+!.env.example
+
+# Tests
+coverage/
+.nyc_output/
+*.spec.ts
+*.test.ts
+__tests__/
+test/
+tests/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Docker files (not needed inside container)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+.cache/
+tmp/
+temp/
+.tmp/

@@ -6,6 +6,7 @@ interface WordCardProps {
   color: CardType;
   isRevealed: boolean;
   isSpymaster: boolean;
+  isSelected?: boolean;
   onClick?: () => void;
   disabled?: boolean;
 }
@@ -38,6 +39,7 @@ const WordCard: React.FC<WordCardProps> = ({
   color,
   isRevealed,
   isSpymaster,
+  isSelected = false,
   onClick,
   disabled = false,
 }) => {
@@ -55,6 +57,11 @@ const WordCard: React.FC<WordCardProps> = ({
     if (isSpymaster) {
       // Spymaster view - subtle colored indicator
       return `${baseClasses} bg-gray-800 border-2 ${styles.border} text-white`;
+    }
+
+    // Selected card (first click)
+    if (isSelected) {
+      return `${baseClasses} bg-purple-600 border-4 border-purple-400 text-white cursor-pointer transform scale-105 shadow-xl ring-4 ring-purple-500/50 animate-pulse`;
     }
 
     // Regular player view - neutral card

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useGameContext } from '../contexts/GameContext';
 import { useSocketContext } from '../contexts/SocketContext';
 import { getLobby } from '../utils/api';
-import { Lobby as LobbyType, Player, GameState } from '../types';
+import { Lobby as LobbyType, Player, GameState, CurrentHint } from '../types';
 import Lobby from '../components/Lobby';
 import GameBoard from '../components/GameBoard';
 import UsernameModal from '../components/UsernameModal';
@@ -19,6 +19,7 @@ const LobbyPage: React.FC = () => {
     setPlayers,
     setCurrentPlayer,
     setLobbyId,
+    setCurrentHint,
   } = useGameContext();
   const { socket, isConnected, connect, disconnect } = useSocketContext();
 
@@ -115,10 +116,13 @@ const LobbyPage: React.FC = () => {
     };
 
     const handleGameStarted = (state: GameState) => {
+      console.log('Game started:', state);
       setGameState(state);
+      setCurrentHint(null); // Clear any previous hint
     };
 
     const handleGameUpdate = (state: GameState) => {
+      console.log('Game updated:', state);
       setGameState(state);
     };
 
@@ -149,6 +153,29 @@ const LobbyPage: React.FC = () => {
       }
     };
 
+    const handleTurnChanged = (data: { currentTurn: 'red' | 'blue' }) => {
+      // We need to use the gameState from useGameContext to update turn
+      // Since this is in a closure, we need to refetch game state or update differently
+      // For now, log and the effect dependencies should handle re-subscription
+      console.log('Turn changed to:', data.currentTurn);
+      // Clear the current hint when turn changes
+      setCurrentHint(null);
+      // Force a state update by requesting new game state from server
+      if (socket && urlLobbyId) {
+        socket.emit('getGameState', { lobbyId: urlLobbyId }, (response: { success: boolean; gameState?: GameState }) => {
+          if (response.success && response.gameState) {
+            setGameState(response.gameState);
+          }
+        });
+      }
+    };
+
+    const handleHintGiven = (data: CurrentHint) => {
+      console.log('Hint received:', data);
+      console.log(`Hint from ${data.spymasterName}: "${data.hint}" (${data.number})`);
+      setCurrentHint(data);
+    };
+
     const handleError = (message: string) => {
       console.error('Socket error:', message);
       setError(message);
@@ -164,6 +191,8 @@ const LobbyPage: React.FC = () => {
     socket.on('joined', handleJoined);
     socket.on('teamUpdated', handleTeamUpdated);
     socket.on('roleUpdated', handleRoleUpdated);
+    socket.on('turnChanged', handleTurnChanged);
+    socket.on('hintGiven', handleHintGiven);
     socket.on('error', handleError);
 
     // Then emit join if connected
@@ -185,9 +214,11 @@ const LobbyPage: React.FC = () => {
       socket.off('joined', handleJoined);
       socket.off('teamUpdated', handleTeamUpdated);
       socket.off('roleUpdated', handleRoleUpdated);
+      socket.off('turnChanged', handleTurnChanged);
+      socket.off('hintGiven', handleHintGiven);
       socket.off('error', handleError);
     };
-  }, [socket, isConnected, username, urlLobbyId, currentPlayer, setPlayers, setCurrentPlayer, setGameState]);
+  }, [socket, isConnected, username, urlLobbyId, currentPlayer, setPlayers, setCurrentPlayer, setGameState, setCurrentHint]);
 
   const handleUsernameSubmit = useCallback((name: string) => {
     setUsername(name);

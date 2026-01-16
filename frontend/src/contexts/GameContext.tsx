@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { GameState, Player, Team, Role } from '../types';
+import { GameState, Player, Team, Role, CurrentHint } from '../types';
 
 interface GameContextType {
   gameState: GameState | null;
@@ -8,10 +8,12 @@ interface GameContextType {
   lobbyId: string | null;
   isHost: boolean;
   isSpymaster: boolean;
+  currentHint: CurrentHint | null;
   setGameState: (state: GameState | null) => void;
   setPlayers: React.Dispatch<React.SetStateAction<Player[]>>;
   setCurrentPlayer: (player: Player | null) => void;
   setLobbyId: (id: string | null) => void;
+  setCurrentHint: (hint: CurrentHint | null) => void;
   updatePlayerTeam: (playerId: string, team: Team) => void;
   updatePlayerRole: (playerId: string, role: Role) => void;
   resetGame: () => void;
@@ -24,6 +26,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [lobbyId, setLobbyId] = useState<string | null>(null);
+  const [currentHint, setCurrentHint] = useState<CurrentHint | null>(null);
 
   const isHost = currentPlayer?.isHost ?? false;
   const isSpymaster = currentPlayer?.role === 'spymaster';
@@ -55,6 +58,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setPlayers([]);
     setCurrentPlayer(null);
     setLobbyId(null);
+    setCurrentHint(null);
   }, []);
 
   return (
@@ -66,10 +70,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lobbyId,
         isHost,
         isSpymaster,
+        currentHint,
         setGameState,
         setPlayers,
         setCurrentPlayer,
         setLobbyId,
+        setCurrentHint,
         updatePlayerTeam,
         updatePlayerRole,
         resetGame,

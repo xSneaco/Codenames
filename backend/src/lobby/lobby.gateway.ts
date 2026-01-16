@@ -324,14 +324,26 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       // Update lobby status
-      await this.lobbyService.updateLobbyStatus(normalizedLobbyId, 'starting');
+      await this.lobbyService.updateLobbyStatus(normalizedLobbyId, 'playing');
 
-      // Notify all players that game is starting
-      this.server.to(normalizedLobbyId).emit('gameStarting', {
-        lobbyId: normalizedLobbyId,
-      });
+      // Create the game
+      await this.gameService.createGame(normalizedLobbyId);
 
-      this.logger.log(`Game starting in lobby ${normalizedLobbyId}`);
+      // Get game state for spymasters and operatives
+      const spymasterState = await this.gameService.getGameStateForFrontend(normalizedLobbyId, true);
+      const operativeState = await this.gameService.getGameStateForFrontend(normalizedLobbyId, false);
+
+      // Emit to each player based on their role
+      const sockets = await this.server.in(normalizedLobbyId).fetchSockets();
+      for (const socket of sockets) {
+        const player = await this.lobbyService.getPlayerBySocketId(socket.id);
+        if (player) {
+          const isSpymaster = player.role === 'spymaster';
+          socket.emit('gameStarted', isSpymaster ? spymasterState : operativeState);
+        }
+      }
+
+      this.logger.log(`Game started in lobby ${normalizedLobbyId}`);
 
       return { success: true };
     } catch (error) {
@@ -387,10 +399,10 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('revealWord')
   async handleRevealWord(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: RevealWordDto,
+    @MessageBody() data: { lobbyId: string; position?: number; word?: string },
   ): Promise<{ success: boolean; result?: any; error?: string }> {
     try {
-      const { lobbyId, word } = data;
+      const { lobbyId, position, word: inputWord } = data;
       const normalizedLobbyId = lobbyId.toUpperCase();
 
       const player = await this.lobbyService.getPlayerBySocketId(client.id);
@@ -411,7 +423,33 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return { success: false, error: 'It is not your team\'s turn' };
       }
 
+      // Resolve word from position if provided
+      let word: string;
+      if (position !== undefined) {
+        if (position < 0 || position >= game.words.length) {
+          return { success: false, error: 'Invalid position' };
+        }
+        word = game.words[position];
+      } else if (inputWord) {
+        word = inputWord;
+      } else {
+        return { success: false, error: 'Either position or word is required' };
+      }
+
       const result = await this.gameService.revealWord(normalizedLobbyId, word, player.team);
+
+      // Emit updated game state to each player based on their role
+      const spymasterState = await this.gameService.getGameStateForFrontend(normalizedLobbyId, true);
+      const operativeState = await this.gameService.getGameStateForFrontend(normalizedLobbyId, false);
+
+      const sockets = await this.server.in(normalizedLobbyId).fetchSockets();
+      for (const socket of sockets) {
+        const p = await this.lobbyService.getPlayerBySocketId(socket.id);
+        if (p) {
+          const isSpymaster = p.role === 'spymaster';
+          socket.emit('gameUpdate', isSpymaster ? spymasterState : operativeState);
+        }
+      }
 
       this.server.to(normalizedLobbyId).emit('wordRevealed', {
         word: result.word,
@@ -422,9 +460,9 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
       if (!result.isCorrect && !result.gameOver) {
-        const newTurn = game.currentTurn === 'red' ? 'blue' : 'red';
+        // Clear hint when turn changes
         this.server.to(normalizedLobbyId).emit('turnChanged', {
-          currentTurn: newTurn,
+          currentTurn: game.currentTurn === 'red' ? 'blue' : 'red',
           reason: result.color === 'neutral' ? 'neutral_word' : 'opponent_word',
         });
       }
@@ -440,6 +478,54 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Error revealing word: ${errorMessage}`);
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Handle spymaster giving a hint
+   */
+  @SubscribeMessage('giveHint')
+  async handleGiveHint(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { lobbyId: string; hint: string; number: number },
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { lobbyId, hint, number } = data;
+      const normalizedLobbyId = lobbyId.toUpperCase();
+
+      const player = await this.lobbyService.getPlayerBySocketId(client.id);
+      if (!player) {
+        return { success: false, error: 'Player not found' };
+      }
+
+      if (player.role !== 'spymaster') {
+        return { success: false, error: 'Only spymasters can give hints' };
+      }
+
+      const game = await this.gameService.getGame(normalizedLobbyId);
+      if (!game) {
+        return { success: false, error: 'Game not found' };
+      }
+
+      if (player.team !== game.currentTurn) {
+        return { success: false, error: 'It is not your team\'s turn' };
+      }
+
+      // Broadcast hint to all players in the lobby
+      this.server.to(normalizedLobbyId).emit('hintGiven', {
+        team: player.team,
+        hint: hint.trim(),
+        number,
+        spymasterName: player.name,
+      });
+
+      this.logger.log(`Hint given in lobby ${normalizedLobbyId}: "${hint}" for ${number}`);
+
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Error giving hint: ${errorMessage}`);
       return { success: false, error: errorMessage };
     }
   }
@@ -472,12 +558,20 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       await this.gameService.endTurn(normalizedLobbyId);
 
-      const newTurn = game.currentTurn === 'red' ? 'blue' : 'red';
+      // Emit updated game state to each player based on their role
+      const spymasterState = await this.gameService.getGameStateForFrontend(normalizedLobbyId, true);
+      const operativeState = await this.gameService.getGameStateForFrontend(normalizedLobbyId, false);
 
-      this.server.to(normalizedLobbyId).emit('turnChanged', {
-        currentTurn: newTurn,
-        reason: 'manual_end',
-      });
+      const sockets = await this.server.in(normalizedLobbyId).fetchSockets();
+      for (const socket of sockets) {
+        const p = await this.lobbyService.getPlayerBySocketId(socket.id);
+        if (p) {
+          const isSpymaster = p.role === 'spymaster';
+          socket.emit('gameUpdate', isSpymaster ? spymasterState : operativeState);
+        }
+      }
+
+      this.logger.log(`Turn ended in lobby ${normalizedLobbyId}`);
 
       return { success: true };
     } catch (error) {

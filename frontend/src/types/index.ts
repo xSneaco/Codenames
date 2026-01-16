@@ -19,6 +19,13 @@ export interface WordCard {
   position: number;
 }
 
+export interface CurrentHint {
+  hint: string;
+  number: number;
+  team: string;
+  spymasterName: string;
+}
+
 export interface GameState {
   id: string;
   lobbyId: string;

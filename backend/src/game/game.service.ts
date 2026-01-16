@@ -186,6 +186,96 @@ export class GameService {
   }
 
   /**
+   * Get game state for frontend (with WordCard format)
+   * Returns data in the format the frontend expects
+   */
+  async getGameStateForFrontend(lobbyId: string, isSpymaster: boolean): Promise<{
+    id: string;
+    lobbyId: string;
+    words: Array<{ word: string; type: string; revealed: boolean; position: number }>;
+    currentTurn: 'red' | 'blue' | null;
+    redScore: number;
+    blueScore: number;
+    redTotal: number;
+    blueTotal: number;
+    status: 'waiting' | 'playing' | 'finished';
+    winner: 'red' | 'blue' | null;
+  }> {
+    const game = await this.getGame(lobbyId);
+
+    if (!game) {
+      throw new NotFoundException('Game not found');
+    }
+
+    const wordsList = game.words;
+    const wordColorsArray = game.wordColors;
+    const revealedArray = game.revealedWords;
+
+    // Calculate scores and totals
+    let redScore = 0;
+    let blueScore = 0;
+    let redTotal = 0;
+    let blueTotal = 0;
+
+    wordsList.forEach((_: string, index: number) => {
+      const color = wordColorsArray[index];
+      if (color === 'red') {
+        redTotal++;
+        if (revealedArray[index]) redScore++;
+      } else if (color === 'blue') {
+        blueTotal++;
+        if (revealedArray[index]) blueScore++;
+      }
+    });
+
+    // Build words array in frontend format
+    const words = wordsList.map((word: string, index: number) => {
+      const color = wordColorsArray[index];
+      const revealed = revealedArray[index];
+      
+      // Map backend colors to frontend types
+      let type: string;
+      if (isSpymaster || revealed) {
+        // Spymaster sees all, or revealed cards show their type
+        type = color === 'black' ? 'assassin' : color;
+      } else {
+        // Hidden for operatives
+        type = 'neutral'; // Will be hidden by frontend
+      }
+
+      return {
+        word,
+        type: isSpymaster || revealed ? (color === 'black' ? 'assassin' : color) : 'neutral',
+        revealed,
+        position: index,
+      };
+    });
+
+    // Map status
+    let status: 'waiting' | 'playing' | 'finished';
+    if (game.status === 'in_progress') {
+      status = 'playing';
+    } else if (game.status === 'finished') {
+      status = 'finished';
+    } else {
+      status = 'waiting';
+    }
+
+    return {
+      id: String(game.id),
+      lobbyId: game.lobbyId,
+      words,
+      currentTurn: game.currentTurn as 'red' | 'blue',
+      redScore,
+      blueScore,
+      redTotal,
+      blueTotal,
+      status,
+      winner: game.status === 'finished' ? (this.determineWinner(game) ?? null) : null,
+    };
+  }
+
+  /**
    * Determine winner from a finished game
    */
   private determineWinner(game: Game): 'red' | 'blue' | undefined {

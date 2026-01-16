@@ -58,8 +58,8 @@ const Lobby: React.FC = () => {
   };
 
   const handleStartGame = () => {
-    if (socket && canStartGame) {
-      socket.emit('startGame');
+    if (socket && canStartGame && lobbyId) {
+      socket.emit('startGame', { lobbyId });
     }
   };
 

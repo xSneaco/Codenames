@@ -6,9 +6,12 @@ import TeamPanel from './TeamPanel';
 import GameOverModal from './GameOverModal';
 
 const GameBoard: React.FC = () => {
-  const { gameState, players, currentPlayer, isSpymaster } = useGameContext();
+  const { gameState, players, currentPlayer, isSpymaster, lobbyId, currentHint } = useGameContext();
   const { socket } = useSocketContext();
   const [showGameOver, setShowGameOver] = useState(true);
+  const [hint, setHint] = useState('');
+  const [hintNumber, setHintNumber] = useState<number>(1);
+  const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
 
   if (!gameState) {
     return (
@@ -26,27 +29,45 @@ const GameBoard: React.FC = () => {
   const canClick = isMyTurn && isOperative && gameState.status === 'playing';
 
   const handleCardClick = (position: number) => {
-    if (socket && canClick) {
-      socket.emit('revealWord', { position });
+    if (!canClick) return;
+
+    if (selectedPosition === position) {
+      // Second click on the same card - submit it
+      if (socket && lobbyId) {
+        socket.emit('revealWord', { lobbyId, position });
+        setSelectedPosition(null);
+      }
+    } else {
+      // First click - select the card
+      setSelectedPosition(position);
     }
   };
 
   const handleEndTurn = () => {
-    if (socket && isMyTurn) {
-      socket.emit('endTurn');
+    if (socket && isMyTurn && lobbyId) {
+      socket.emit('endTurn', { lobbyId });
+      setSelectedPosition(null);
+    }
+  };
+
+  const handleGiveHint = () => {
+    if (socket && isSpymaster && isMyTurn && hint.trim() && lobbyId) {
+      socket.emit('giveHint', { lobbyId, hint: hint.trim(), number: hintNumber });
+      setHint('');
+      setHintNumber(1);
     }
   };
 
   const handlePlayAgain = () => {
-    if (socket) {
-      socket.emit('newGame');
+    if (socket && lobbyId) {
+      socket.emit('newGame', { lobbyId });
       setShowGameOver(false);
     }
   };
 
   const handleBackToLobby = () => {
-    if (socket) {
-      socket.emit('backToLobby');
+    if (socket && lobbyId) {
+      socket.emit('backToLobby', { lobbyId });
       setShowGameOver(false);
     }
   };
@@ -98,6 +119,27 @@ const GameBoard: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Current Hint Display */}
+        {currentHint && (
+          <div className={`mt-3 py-2 px-4 rounded-lg ${
+            currentHint.team === 'red' ? 'bg-red-900/50 border border-red-600' : 'bg-blue-900/50 border border-blue-600'
+          }`}>
+            <div className="max-w-7xl mx-auto flex items-center justify-center gap-4">
+              <span className={`text-sm ${currentHint.team === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
+                {currentHint.spymasterName}:
+              </span>
+              <span className="text-white font-bold text-lg uppercase tracking-wider">
+                "{currentHint.hint}"
+              </span>
+              <span className={`px-3 py-1 rounded-full font-bold ${
+                currentHint.team === 'red' ? 'bg-red-600' : 'bg-blue-600'
+              } text-white`}>
+                {currentHint.number === 0 ? '∞' : currentHint.number}
+              </span>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
@@ -126,6 +168,7 @@ const GameBoard: React.FC = () => {
                     color={card.type}
                     isRevealed={card.revealed}
                     isSpymaster={isSpymaster}
+                    isSelected={selectedPosition === card.position}
                     onClick={() => handleCardClick(card.position)}
                     disabled={!canClick || card.revealed}
                   />
@@ -162,8 +205,55 @@ const GameBoard: React.FC = () => {
               </div>
             </div>
 
-            {/* Spymaster Hint */}
-            {isSpymaster && (
+            {/* Spymaster Hint Input */}
+            {isSpymaster && isMyTurn && gameState.status === 'playing' && (
+              <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                <p className="text-yellow-400 text-sm mb-3 text-center">
+                  <svg
+                    className="w-5 h-5 inline mr-2"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Give a hint to your team!
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <input
+                    type="text"
+                    value={hint}
+                    onChange={(e) => setHint(e.target.value)}
+                    placeholder="Enter hint word..."
+                    className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  />
+                  <select
+                    value={hintNumber}
+                    onChange={(e) => setHintNumber(Number(e.target.value))}
+                    className="px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((n) => (
+                      <option key={n} value={n}>
+                        {n === 0 ? '∞' : n}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleGiveHint}
+                    disabled={!hint.trim()}
+                    className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Give Hint
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Spymaster Info (when not their turn) */}
+            {isSpymaster && (!isMyTurn || gameState.status !== 'playing') && (
               <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-center">
                 <p className="text-yellow-400 text-sm">
                   <svg
@@ -177,7 +267,7 @@ const GameBoard: React.FC = () => {
                       clipRule="evenodd"
                     />
                   </svg>
-                  You are the Spymaster! You can see all card colors. Give clues to help your team!
+                  You are the Spymaster! You can see all card colors.
                 </p>
               </div>
             )}

@@ -53,8 +53,9 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
+# Install production dependencies plus drizzle-kit and @nestjs/cli for migrations
 RUN npm ci --only=production && \
+    npm install drizzle-kit @nestjs/cli && \
     npm cache clean --force
 
 # Copy built application from builder stage

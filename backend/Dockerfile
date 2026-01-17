@@ -61,8 +61,10 @@ RUN npm ci --only=production && \
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Copy drizzle config for migrations
+# Copy necessary config files and folders
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/src/db ./src/db
 
 # Change ownership to non-root user

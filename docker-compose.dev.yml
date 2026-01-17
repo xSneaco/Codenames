@@ -5,9 +5,11 @@ services:
     image: postgres:15-alpine
     container_name: codenames-postgres
     environment:
-      POSTGRES_USER: ${DB_USER:-codenames}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-codenames_password}
-      POSTGRES_DB: ${DB_NAME:-codenames}
+      POSTGRES_USER: codenames
+      POSTGRES_PASSWORD: codenames_password
+      POSTGRES_DB: codenames
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,22 +24,26 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: production
+      target: development
     container_name: codenames-backend
     ports:
-      - "3101:3001"
+      - "3001:3001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
     environment:
+      NODE_ENV: development
       DATABASE_HOST: postgres
-      DATABASE_PORT: 5433
-      DATABASE_USER: ${DB_USER:-codenames}
-      DATABASE_PASSWORD: ${DB_PASSWORD:-codenames_password}
-      DATABASE_NAME: ${DB_NAME:-codenames}
-      DATABASE_URL: postgresql://${DB_USER:-codenames}:${DB_PASSWORD:-codenames_password}@postgres:5433/${DB_NAME:-codenames}
+      DATABASE_PORT: 5432
+      DATABASE_USER: codenames
+      DATABASE_PASSWORD: codenames_password
+      DATABASE_NAME: codenames
+      DATABASE_URL: postgresql://codenames:codenames_password@postgres:5432/codenames
       PORT: 3001
     depends_on:
       postgres:
         condition: service_healthy
-    command: sh -c "npm run db:push && npm start"
+    command: sh -c "npm run db:push && npm run start:dev"
     restart: unless-stopped
 
   frontend:
@@ -45,11 +51,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: /api
-        VITE_WS_URL: ""
+        VITE_API_URL: http://localhost:3000/api
+        VITE_WS_URL: http://localhost:3000
     container_name: codenames-frontend
     ports:
-      - "3004:80"
+      - "3000:80"
     depends_on:
       - backend
     restart: unless-stopped

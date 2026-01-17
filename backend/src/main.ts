@@ -10,6 +10,9 @@ async function bootstrap() {
     },
   });
 
+  // Set global API prefix to match proxy configuration
+  app.setGlobalPrefix('api');
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

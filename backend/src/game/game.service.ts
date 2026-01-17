@@ -95,6 +95,7 @@ export class GameService {
       wordColors: wordColorsArray,
       revealedWords,
       currentTurn: startingTeam,
+      currentPhase: 'hint',
       startingTeam,
       status: 'in_progress',
     };
@@ -266,6 +267,7 @@ export class GameService {
       lobbyId: game.lobbyId,
       words,
       currentTurn: game.currentTurn as 'red' | 'blue',
+      currentPhase: (game.currentPhase || 'hint') as 'hint' | 'guessing',
       redScore,
       blueScore,
       redTotal,
@@ -385,11 +387,14 @@ export class GameService {
     }
 
     // Update game in database
+    // When turn changes, reset to hint phase; otherwise stay in guessing phase
+    const newPhase = newTurn !== currentTurn ? 'hint' : 'guessing';
     await db
       .update(games)
       .set({
         revealedWords: revealedArray,
         currentTurn: newTurn,
+        currentPhase: newPhase,
         status: newStatus,
       })
       .where(eq(games.lobbyId, lobbyId));
@@ -456,7 +461,28 @@ export class GameService {
 
     await db
       .update(games)
-      .set({ currentTurn: newTurn })
+      .set({ currentTurn: newTurn, currentPhase: 'hint' })
+      .where(eq(games.lobbyId, lobbyId));
+  }
+
+  /**
+   * Set the game phase (hint or guessing)
+   */
+  async setGamePhase(lobbyId: string, phase: 'hint' | 'guessing'): Promise<void> {
+    const db = this.databaseService.getDb();
+    const game = await this.getGame(lobbyId);
+
+    if (!game) {
+      throw new NotFoundException('Game not found');
+    }
+
+    if (game.status !== 'in_progress') {
+      throw new BadRequestException('Game is not in progress');
+    }
+
+    await db
+      .update(games)
+      .set({ currentPhase: phase })
       .where(eq(games.lobbyId, lobbyId));
   }
 

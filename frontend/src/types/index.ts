@@ -31,6 +31,7 @@ export interface GameState {
   lobbyId: string;
   words: WordCard[];
   currentTurn: Team;
+  currentPhase: 'hint' | 'guessing';
   redScore: number;
   blueScore: number;
   redTotal: number;

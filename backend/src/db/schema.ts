@@ -28,6 +28,7 @@ export const games = pgTable('games', {
   wordColors: json('word_colors').$type<string[]>().notNull(),
   revealedWords: json('revealed_words').$type<boolean[]>().notNull(),
   currentTurn: varchar('current_turn', { length: 10 }).notNull(),
+  currentPhase: varchar('current_phase', { length: 20 }).default('hint').notNull(),
   status: varchar('status', { length: 20 }).default('in_progress').notNull(),
   startingTeam: varchar('starting_team', { length: 10 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

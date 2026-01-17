@@ -512,6 +512,15 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return { success: false, error: 'It is not your team\'s turn' };
       }
 
+      // Check if we're in the hint phase
+      const currentPhase = game.currentPhase || 'hint';
+      if (currentPhase !== 'hint') {
+        return { success: false, error: 'Hint has already been given this turn' };
+      }
+
+      // Transition game to guessing phase
+      await this.gameService.setGamePhase(normalizedLobbyId, 'guessing');
+
       // Broadcast hint to all players in the lobby
       this.server.to(normalizedLobbyId).emit('hintGiven', {
         team: player.team,

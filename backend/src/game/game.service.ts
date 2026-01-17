@@ -195,6 +195,7 @@ export class GameService {
     lobbyId: string;
     words: Array<{ word: string; type: string; revealed: boolean; position: number }>;
     currentTurn: 'red' | 'blue' | null;
+    currentPhase: 'hint' | 'guessing';
     redScore: number;
     blueScore: number;
     redTotal: number;

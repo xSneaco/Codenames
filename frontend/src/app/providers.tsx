@@ -1,13 +1,15 @@
 'use client';
 
-import { ReactNode } from 'react';
-import { GameProvider } from '@/contexts/GameContext';
+import { HeroUIProvider } from '@heroui/react';
 import { SocketProvider } from '@/contexts/SocketContext';
+import { GameProvider } from '@/contexts/GameContext';
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SocketProvider>
-      <GameProvider>{children}</GameProvider>
-    </SocketProvider>
+    <HeroUIProvider>
+      <SocketProvider>
+        <GameProvider>{children}</GameProvider>
+      </SocketProvider>
+    </HeroUIProvider>
   );
 }

@@ -1,10 +1,16 @@
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
-import { HeroUIProvider } from '@heroui/react';
 import { Providers } from './providers';
 
-export const metadata = {
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
   title: 'Codenames',
-  description: 'The classic word game, now online',
+  description: 'Real-time multiplayer Codenames game',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
@@ -13,11 +19,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
-      <body className="min-h-screen bg-background-main text-text-main">
-        <HeroUIProvider>
-          <Providers>{children}</Providers>
-        </HeroUIProvider>
+    <html lang="en" className="dark">
+      <body className={inter.className}>
+        <Providers>
+          <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+            {children}
+          </main>
+        </Providers>
       </body>
     </html>
   );

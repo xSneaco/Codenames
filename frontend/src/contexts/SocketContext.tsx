@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { io, Socket } from 'socket.io-client';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { Socket } from 'socket.io-client';
+import socketClient from '@/lib/socket';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -10,85 +11,73 @@ interface SocketContextType {
   disconnect: () => void;
 }
 
-const SocketContext = createContext<SocketContextType | undefined>(undefined);
+const SocketContext = createContext<SocketContextType>({
+  socket: null,
+  isConnected: false,
+  connect: () => {},
+  disconnect: () => {},
+});
 
-// Use same origin to go through nginx proxy, avoiding cross-origin WebSocket issues
-const getSocketUrl = () => {
-  if (typeof window === 'undefined') return '';
-  return process.env.NEXT_PUBLIC_WS_URL || window.location.origin;
-};
-
-export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export function SocketProvider({ children }: { children: ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const socketRef = React.useRef<Socket | null>(null);
 
   const connect = useCallback(() => {
-    // Prevent multiple connections
-    if (socketRef.current) return;
-
-    const SOCKET_URL = getSocketUrl();
-
-    const newSocket = io(SOCKET_URL, {
-      autoConnect: false,
-      transports: ['polling', 'websocket'],
-      upgrade: true,
-      rememberUpgrade: false,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
-
-    socketRef.current = newSocket;
-
-    newSocket.on('connect', () => {
-      setIsConnected(true);
-      console.log('Socket connected:', newSocket.id);
-    });
-
-    newSocket.on('disconnect', () => {
-      setIsConnected(false);
-      console.log('Socket disconnected');
-    });
-
-    newSocket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      setIsConnected(false);
-    });
-
-    newSocket.connect();
+    const newSocket = socketClient.connect();
     setSocket(newSocket);
   }, []);
 
   const disconnect = useCallback(() => {
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
-      setSocket(null);
-      setIsConnected(false);
-    }
+    socketClient.disconnect();
+    setSocket(null);
+    setIsConnected(false);
   }, []);
 
   useEffect(() => {
+    // Auto-connect on mount
+    connect();
+
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
+      // Don't disconnect on unmount - let the socket persist
     };
-  }, []);
+  }, [connect]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleConnect = () => {
+      setIsConnected(true);
+    };
+
+    const handleDisconnect = () => {
+      setIsConnected(false);
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+
+    // Check initial state
+    if (socket.connected) {
+      setIsConnected(true);
+    }
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+    };
+  }, [socket]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected, connect, disconnect }}>
       {children}
     </SocketContext.Provider>
   );
-};
+}
 
-export const useSocketContext = (): SocketContextType => {
+export function useSocket() {
   const context = useContext(SocketContext);
-  if (context === undefined) {
-    throw new Error('useSocketContext must be used within a SocketProvider');
+  if (!context) {
+    throw new Error('useSocket must be used within a SocketProvider');
   }
   return context;
-};
+}

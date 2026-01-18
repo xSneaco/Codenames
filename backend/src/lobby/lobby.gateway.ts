@@ -14,6 +14,7 @@ import { GameService } from '../game/game.service';
 import { JoinLobbyDto } from './dto/join-lobby.dto';
 import { RevealWordDto } from '../game/dto/reveal-word.dto';
 import { GetGameStateDto, EndTurnDto, NewGameDto } from '../game/dto/game-state.dto';
+import { GiveHintDto } from '../game/dto/give-hint.dto';
 
 interface SelectTeamPayload {
   playerId: number;
@@ -488,7 +489,7 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('giveHint')
   async handleGiveHint(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { lobbyId: string; hint: string; number: number },
+    @MessageBody() data: GiveHintDto,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const { lobbyId, hint, number } = data;

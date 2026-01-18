@@ -36,16 +36,17 @@ services:
       DATABASE_NAME: ${DB_NAME:-codenames}
       DATABASE_URL: postgresql://${DB_USER:-codenames}:${DB_PASSWORD:-codenames_password}@postgres:5432/${DB_NAME:-codenames}
       PORT: 3001
+      NODE_ENV: production
     depends_on:
       postgres:
         condition: service_healthy
     command: sh -c "npm run db:push && npm run start:prod"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health/ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/api/health/ready || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     restart: unless-stopped
 
   frontend:
@@ -59,8 +60,7 @@ services:
     ports:
       - "3004:80"
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     restart: unless-stopped
 
 volumes:

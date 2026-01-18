@@ -529,6 +529,19 @@ export class LobbyGateway implements OnGatewayConnection, OnGatewayDisconnect {
         spymasterName: player.name,
       });
 
+      // Emit updated game state to each player based on their role
+      const spymasterState = await this.gameService.getGameStateForFrontend(normalizedLobbyId, true);
+      const operativeState = await this.gameService.getGameStateForFrontend(normalizedLobbyId, false);
+
+      const sockets = await this.server.in(normalizedLobbyId).fetchSockets();
+      for (const socket of sockets) {
+        const p = await this.lobbyService.getPlayerBySocketId(socket.id);
+        if (p) {
+          const isSpymaster = p.role === 'spymaster';
+          socket.emit('gameUpdate', isSpymaster ? spymasterState : operativeState);
+        }
+      }
+
       this.logger.log(`Hint given in lobby ${normalizedLobbyId}: "${hint}" for ${number}`);
 
       return { success: true };

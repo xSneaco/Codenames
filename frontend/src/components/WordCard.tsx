@@ -1,5 +1,6 @@
-import React from 'react';
-import { CardType } from '../types';
+'use client';
+
+import { CardType } from '@/types';
 
 interface WordCardProps {
   word: string;
@@ -13,24 +14,24 @@ interface WordCardProps {
 
 const colorStyles: Record<CardType, { bg: string; border: string; text: string }> = {
   red: {
-    bg: 'bg-red-600',
-    border: 'border-red-500',
-    text: 'text-white',
+    bg: '#b91c1c',
+    border: '#ef4444',
+    text: 'white',
   },
   blue: {
-    bg: 'bg-blue-600',
-    border: 'border-blue-500',
-    text: 'text-white',
+    bg: '#1d4ed8',
+    border: '#3b82f6',
+    text: 'white',
   },
   neutral: {
-    bg: 'bg-amber-200',
-    border: 'border-amber-400',
-    text: 'text-gray-800',
+    bg: '#fcd34d',
+    border: '#f59e0b',
+    text: '#1a1a1a',
   },
   assassin: {
-    bg: 'bg-gray-900',
-    border: 'border-gray-600',
-    text: 'text-white',
+    bg: '#171717',
+    border: '#525252',
+    text: 'white',
   },
 };
 
@@ -46,72 +47,91 @@ const WordCard: React.FC<WordCardProps> = ({
   const styles = colorStyles[color];
   const isClickable = !disabled && !isRevealed && onClick;
 
-  const getCardClasses = () => {
-    const baseClasses =
-      'relative w-full aspect-[4/3] rounded-xl font-semibold text-sm md:text-base transition-all duration-300 flex items-center justify-center p-2 overflow-hidden';
+  // Modern Card Visualization
+  let containerClasses = "group relative w-full aspect-[4/3] rounded-xl flex items-center justify-center p-3 transition-all duration-300 select-none overflow-hidden touch-manipulation outline-none";
+  let contentClasses = "relative z-10 font-black uppercase tracking-wide text-xs sm:text-sm md:text-base lg:text-lg text-center leading-tight break-words";
+  let style: React.CSSProperties = {};
 
-    if (isRevealed) {
-      return `${baseClasses} ${styles.bg} ${styles.text} shadow-lg`;
+  if (isRevealed) {
+    // Revealed State
+    style = {
+      backgroundColor: styles.bg,
+      color: styles.text,
+      boxShadow: 'none',
+    };
+    containerClasses += " opacity-90 scale-[0.98]";
+
+    // Add distinct border for accessibility/clarity
+    if (['red', 'blue', 'assassin'].includes(color)) {
+      containerClasses += " ring-2 ring-white/20";
     }
-
-    if (isSpymaster) {
-      // Spymaster view - subtle colored indicator
-      return `${baseClasses} bg-gray-800 border-2 ${styles.border} text-white`;
-    }
-
-    // Selected card (first click)
+  } else {
+    // Hidden State
     if (isSelected) {
-      return `${baseClasses} bg-purple-600 border-4 border-purple-400 text-white cursor-pointer transform scale-105 shadow-xl ring-4 ring-purple-500/50 animate-pulse`;
-    }
+      // Logic for "pending selection"
+      containerClasses += " bg-accent-main cursor-pointer shadow-lg scale-105 z-20 ring-2 ring-white animate-pulse";
+      contentClasses += " text-white";
+    } else if (isSpymaster) {
+      // Spymaster View
+      containerClasses += " bg-gray-800 border-2 border-dashed";
+      style = {
+        borderColor: styles.border,
+        color: styles.text === '#1a1a1a' ? '#fbbf24' : styles.border // adjust neutral color for dark mode visibility
+      };
+      // Reduce word opacity for spymaster to emphasize the color border
+      contentClasses += " opacity-80";
+    } else {
+      // Default Operative View
+      containerClasses += " bg-[#232a35] border border-white/5 shadow-md";
+      contentClasses += " text-gray-300";
 
-    // Regular player view - neutral card
-    if (isClickable) {
-      return `${baseClasses} bg-gray-700 hover:bg-gray-600 border-2 border-gray-600 hover:border-gray-500 text-white cursor-pointer transform hover:scale-105 hover:shadow-xl`;
+      if (isClickable) {
+        containerClasses += " cursor-pointer hover:bg-[#2e3645] hover:-translate-y-1 hover:shadow-lg hover:border-white/20 active:scale-95";
+        contentClasses += " group-hover:text-white";
+      } else {
+        containerClasses += " opacity-40 cursor-not-allowed grayscale";
+      }
     }
-
-    return `${baseClasses} bg-gray-700 border-2 border-gray-600 text-white opacity-60 cursor-not-allowed`;
-  };
+  }
 
   return (
-    <button
+    <div
+      className={containerClasses}
+      style={style}
       onClick={isClickable ? onClick : undefined}
-      disabled={disabled || isRevealed}
-      className={getCardClasses()}
+      role="button"
+      tabIndex={isClickable ? 0 : -1}
+      aria-label={`${word} ${isRevealed ? `(${color})` : ''}`}
     >
-      {/* Spymaster corner indicator */}
+      {/* Pattern Texture */}
+      <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 pointer-events-none" />
+
+      {/* Shine Effect on Hover (if clickable) - REMOVED for simplicity */}
+      {isClickable && !isRevealed && !isSelected && (
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-5 bg-white transition-opacity pointer-events-none" />
+      )}
+
+      {/* Spymaster Indicator (Corner Dot) */}
       {isSpymaster && !isRevealed && (
         <div
-          className={`absolute top-1 right-1 w-3 h-3 rounded-full ${styles.bg} opacity-75`}
+          className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full"
+          style={{ backgroundColor: styles.bg }}
         />
       )}
 
-      {/* Word text */}
-      <span className="text-center break-words leading-tight uppercase tracking-wide">
+      {/* Content */}
+      <span className={contentClasses}>
         {word}
       </span>
 
-      {/* Revealed overlay effect */}
+      {/* Revealed Icon Overlay */}
       {isRevealed && (
-        <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+         <div className="absolute top-1 left-1 opacity-40 text-xs">
+            {color === 'assassin' && '☠️'}
+            {color === 'neutral' && '🕊️'}
+         </div>
       )}
-
-      {/* Assassin skull indicator */}
-      {isRevealed && color === 'assassin' && (
-        <div className="absolute top-1 right-1">
-          <svg
-            className="w-5 h-5 text-red-500"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </div>
-      )}
-    </button>
+    </div>
   );
 };
 

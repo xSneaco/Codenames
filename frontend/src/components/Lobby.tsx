@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
-import { useGameContext } from '../contexts/GameContext';
-import { useSocketContext } from '../contexts/SocketContext';
-import { Team, Role, Player } from '../types';
-import PlayerList from './PlayerList';
+'use client';
+
+import { useState } from 'react';
+import { Button, Card, CardBody, Chip, Tooltip } from '@heroui/react';
+import { Copy, Check, Star, Users, Play } from 'lucide-react';
+import { useGameContext } from '@/contexts/GameContext';
+import { useSocketContext } from '@/contexts/SocketContext';
+import { Team, Role, Player } from '@/types';
 import WordlistUpload from './WordlistUpload';
+import { colors } from '@/styles/colors';
 
 const Lobby: React.FC = () => {
   const {
@@ -31,18 +35,6 @@ const Lobby: React.FC = () => {
     redTeam.length >= 2 &&
     blueTeam.length >= 2;
 
-  const copyLobbyCode = async () => {
-    if (lobbyId) {
-      try {
-        await navigator.clipboard.writeText(lobbyId);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (err) {
-        console.error('Failed to copy:', err);
-      }
-    }
-  };
-
   const handleTeamSelect = (team: Team) => {
     if (socket && currentPlayer) {
       socket.emit('selectTeam', { playerId: currentPlayer.id, team });
@@ -63,6 +55,12 @@ const Lobby: React.FC = () => {
     }
   };
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(lobbyId || '');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const TeamSection: React.FC<{
     team: 'red' | 'blue';
     teamPlayers: Player[];
@@ -72,266 +70,242 @@ const Lobby: React.FC = () => {
     const isSpymaster = currentPlayer?.team === team && currentPlayer?.role === 'spymaster';
     const isOperative = currentPlayer?.team === team && currentPlayer?.role === 'operative';
 
-    const colors = {
+    const teamConfig = {
       red: {
-        bg: 'bg-red-900/30',
-        border: 'border-red-500',
-        text: 'text-red-400',
-        button: 'bg-red-600 hover:bg-red-700',
+        title: 'Red Agents',
+        bg: 'bg-red-500/5',
+        border: 'border-red-500/20',
+        activeBorder: 'border-red-500',
+        text: 'text-red-500',
+        hover: 'hover:border-red-500/50 hover:bg-red-500/10',
+        button: 'bg-red-600',
+        glow: ''
       },
       blue: {
-        bg: 'bg-blue-900/30',
-        border: 'border-blue-500',
-        text: 'text-blue-400',
-        button: 'bg-blue-600 hover:bg-blue-700',
+        title: 'Blue Agents',
+        bg: 'bg-blue-500/5',
+        border: 'border-blue-500/20',
+        activeBorder: 'border-blue-500',
+        text: 'text-blue-500',
+        hover: 'hover:border-blue-500/50 hover:bg-blue-500/10',
+        button: 'bg-blue-600',
+        glow: ''
       },
     };
 
-    const c = colors[team];
+    const c = teamConfig[team];
 
     return (
-      <div
-        className={`rounded-xl border-2 ${c.border} ${c.bg} p-4 transition-all duration-200`}
+      <Card
+        className={`flex-1 transition-all duration-300 ${c.bg} ${isSelected ? `${c.activeBorder}` : c.border} border-2 overflow-visible`}
       >
-        <h3 className={`text-lg font-bold ${c.text} uppercase tracking-wider mb-4`}>
-          {team} Team
-        </h3>
+        <CardBody className="p-0">
+          {/* Header */}
+          <div className={`p-6 border-b ${c.border} flex justify-between items-center bg-black/20`}>
+            <div>
+              <h2 className={`text-2xl font-black uppercase tracking-widest ${c.text}`}>
+                {c.title}
+              </h2>
+              <p className="text-text-secondary text-sm font-medium opacity-70">
+                {teamPlayers.length} Operatives Ready
+              </p>
+            </div>
+            {!isSelected && (
+              <Button
+                size="sm"
+                className={`${c.button} text-white font-bold uppercase tracking-wider`}
+                onPress={() => handleTeamSelect(team)}
+              >
+                Join Team
+              </Button>
+            )}
+            {isSelected && (
+               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20">
+                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                 <span className="text-xs font-bold text-white uppercase">Joined</span>
+               </div>
+            )}
+          </div>
 
-        {/* Team Players */}
-        <div className="mb-4 min-h-[100px]">
-          {teamPlayers.length > 0 ? (
-            <div className="space-y-2">
+          <div className="p-6 flex flex-col gap-6 h-full">
+            {/* Role Selection (Only visible if on team) */}
+            {isSelected && (
+              <div className="flex gap-2 p-1 bg-black/40 rounded-xl mb-2">
+                <button
+                  onClick={() => handleRoleSelect('operative')}
+                  className={`flex-1 py-3 px-4 rounded-lg text-sm font-bold uppercase transition-all flex items-center justify-center gap-2 ${
+                    isOperative
+                      ? 'bg-white text-black shadow-lg scale-[1.02]'
+                      : 'text-text-secondary hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Users size={16} />
+                  Operative
+                </button>
+                <button
+                  onClick={() => handleRoleSelect('spymaster')}
+                  disabled={hasSpymaster && !isSpymaster}
+                  className={`flex-1 py-3 px-4 rounded-lg text-sm font-bold uppercase transition-all flex items-center justify-center gap-2 ${
+                    isSpymaster
+                      ? 'bg-white text-black shadow-lg scale-[1.02]'
+                      : 'text-text-secondary hover:text-white hover:bg-white/5'
+                  } ${hasSpymaster && !isSpymaster ? 'opacity-30 cursor-not-allowed' : ''}`}
+                >
+                  <Star size={16} />
+                  Spymaster
+                </button>
+              </div>
+            )}
+
+            {/* Player List */}
+            <div className="flex flex-col gap-3 flex-1">
               {teamPlayers.map((player) => (
                 <div
                   key={player.id}
-                  className="flex items-center gap-2 p-2 bg-black/20 rounded-lg"
+                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                    player.id === currentPlayer?.id
+                      ? 'bg-white/10 border-white/30'
+                      : 'bg-black/20 border-white/5'
+                  }`}
                 >
-                  {player.role === 'spymaster' && (
-                    <svg
-                      className="w-4 h-4 text-yellow-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  )}
-                  <span className="text-white text-sm flex-1 truncate">
-                    {player.name}
-                    {player.id === currentPlayer?.id && (
-                      <span className="text-gray-500 ml-1">(You)</span>
-                    )}
-                  </span>
-                  {player.role && (
-                    <span className="text-xs text-gray-400 capitalize">
+                  <div className={`p-2 rounded-lg ${player.role === 'spymaster' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-white/5 text-text-secondary'}`}>
+                    {player.role === 'spymaster' ? <Star size={16} /> : <Users size={16} />}
+                  </div>
+                  <div className="flex-1">
+                    <p className={`font-bold ${player.id === currentPlayer?.id ? 'text-white' : 'text-text-secondary'}`}>
+                      {player.name} {player.id === currentPlayer?.id && '(You)'}
+                    </p>
+                    <p className="text-[10px] uppercase tracking-widest opacity-50">
                       {player.role}
-                    </span>
-                  )}
+                    </p>
+                  </div>
                 </div>
               ))}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-gray-500 text-sm">
-              No players yet
-            </div>
-          )}
-        </div>
 
-        {/* Join Team Button */}
-        {!isSelected && (
-          <button
-            onClick={() => handleTeamSelect(team)}
-            className={`w-full py-2 px-4 ${c.button} text-white font-medium rounded-lg transition-all duration-200`}
-          >
-            Join {team === 'red' ? 'Red' : 'Blue'} Team
-          </button>
-        )}
-
-        {/* Role Selection (if on this team) */}
-        {isSelected && (
-          <div className="space-y-2">
-            <p className="text-gray-400 text-xs uppercase tracking-wide mb-2">
-              Select Role
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => handleRoleSelect('spymaster')}
-                disabled={hasSpymaster && !isSpymaster}
-                className={`py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isSpymaster
-                    ? 'bg-yellow-600 text-white'
-                    : hasSpymaster
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-gray-700 hover:bg-gray-600 text-white'
-                }`}
-              >
-                <svg
-                  className="w-4 h-4 inline mr-1"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-                Spymaster
-              </button>
-              <button
-                onClick={() => handleRoleSelect('operative')}
-                className={`py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isOperative
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-700 hover:bg-gray-600 text-white'
-                }`}
-              >
-                Operative
-              </button>
+              {teamPlayers.length === 0 && (
+                <div className="text-center py-10 opacity-30 border-2 border-dashed border-white/10 rounded-xl">
+                  <p className="text-sm font-medium uppercase tracking-widest">No Agents</p>
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
+        </CardBody>
+      </Card>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 mb-4">
-            Codenames
-          </h1>
+    <div className="flex flex-col h-screen overflow-hidden relative">
+      <div className="absolute inset-0 z-0 bg-cover bg-center opacity-5" style={{ backgroundImage: 'url(/noise.png)' }}></div>
 
-          {/* Lobby Code */}
-          <div className="inline-flex items-center gap-3 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
-            <span className="text-gray-400 text-sm">Lobby Code:</span>
-            <span className="text-white font-mono text-lg font-bold tracking-wider">
-              {lobbyId}
-            </span>
-            <button
-              onClick={copyLobbyCode}
-              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-              title="Copy lobby code"
+      {/* Top Bar - Lobby Info */}
+      <div className="z-10 w-full p-4 flex justify-between items-center bg-[#1a1f29] border-b border-white/5">
+        <h1 className="text-xl font-black uppercase tracking-widest text-white/90">
+          Lobby
+        </h1>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 bg-black/40 px-4 py-2 rounded-full border border-white/10">
+            <span className="text-xs text-text-secondary uppercase tracking-wider font-bold">Code</span>
+            <span className="text-lg font-mono font-bold text-white tracking-widest">{lobbyId}</span>
+            <Tooltip content={copied ? "Copied!" : "Copy Code"} closeDelay={100}>
+                <button
+                onClick={handleCopy}
+                className="ml-2 p-1.5 rounded-full hover:bg-white/10 transition-colors text-text-secondary hover:text-white"
+                >
+                {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                </button>
+            </Tooltip>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content - Team Standoff */}
+      <div className="z-10 flex-1 flex flex-col md:flex-row gap-6 p-6 overflow-hidden">
+
+        {/* Red Team Area */}
+        <div className="flex-1 flex flex-col overflow-hidden h-full">
+           <TeamSection
+              team="red"
+              teamPlayers={redTeam}
+              hasSpymaster={!!redSpymaster}
+            />
+        </div>
+
+        {/* Center Divider / Info */}
+        <div className="flex flex-col justify-center items-center gap-6 min-w-[200px]">
+           <div className="w-[1px] h-20 bg-white/20 hidden md:block"></div>
+           <div className="text-center">
+             <div className="text-6xl font-black text-white/10 select-none">VS</div>
+           </div>
+
+           {/* Unassigned Players */}
+           <div className="w-full flex flex-col gap-2">
+             {unassigned.length > 0 && (
+               <div className="bg-[#1a1f29] p-4 rounded-xl border border-white/10">
+                 <div className="flex items-center gap-2 mb-3 text-text-secondary">
+                   <Users size={14} />
+                   <span className="text-xs uppercase tracking-widest font-bold">Spectators</span>
+                 </div>
+                 <div className="flex flex-wrap gap-2">
+                   {unassigned.map((player) => (
+                      <Chip key={player.id} size="sm" variant="flat" className="bg-white/10 text-white/80">
+                        {player.name}
+                      </Chip>
+                   ))}
+                 </div>
+               </div>
+             )}
+
+             {isHost && lobbyId && (
+               <div className="mt-4">
+                 <WordlistUpload lobbyId={lobbyId} />
+               </div>
+             )}
+           </div>
+
+           <div className="w-[1px] h-20 bg-white/20 hidden md:block"></div>
+        </div>
+
+        {/* Blue Team Area */}
+        <div className="flex-1 flex flex-col overflow-hidden h-full">
+          <TeamSection
+              team="blue"
+              teamPlayers={blueTeam}
+              hasSpymaster={!!blueSpymaster}
+            />
+        </div>
+      </div>
+
+      {/* Bottom Bar - Actions */}
+      <div className="z-20 p-6 bg-[#1a1f29] border-t border-white/5 flex flex-col justify-center items-center gap-3">
+        {isHost ? (
+          <>
+            <Button
+              size="lg"
+              className={`min-w-[300px] h-14 text-lg font-bold uppercase tracking-wider text-white shadow-xl transition-all ${canStartGame ? 'translate-y-0 text-white' : 'translate-y-1 opacity-50'}`}
+              style={{
+                backgroundColor: canStartGame
+                  ? colors.accent.main
+                  : '#1f2937',
+                boxShadow: 'none'
+              }}
+              isDisabled={!canStartGame}
+              onPress={handleStartGame}
+              startContent={canStartGame ? <Play size={24} fill="currentColor" /> : null}
             >
-              {copied ? (
-                <svg
-                  className="w-5 h-5 text-green-400"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          {/* Red Team */}
-          <TeamSection
-            team="red"
-            teamPlayers={redTeam}
-            hasSpymaster={!!redSpymaster}
-          />
-
-          {/* Blue Team */}
-          <TeamSection
-            team="blue"
-            teamPlayers={blueTeam}
-            hasSpymaster={!!blueSpymaster}
-          />
-        </div>
-
-        {/* Unassigned Players */}
-        {unassigned.length > 0 && (
-          <div className="mb-8 bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-            <h3 className="text-gray-400 text-sm uppercase tracking-wider mb-3">
-              Waiting for Team ({unassigned.length})
-            </h3>
-            <PlayerList players={unassigned} currentPlayerId={currentPlayer?.id} />
-          </div>
-        )}
-
-        {/* Host Controls */}
-        {isHost && (
-          <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 space-y-6">
-            <h3 className="text-white font-semibold flex items-center gap-2">
-              <svg
-                className="w-5 h-5 text-yellow-400"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path d="M2.93 14.5l1.5-7.5L7.5 10l2.5-5 2.5 5 3.07-3 1.5 7.5H2.93z" />
-                <path d="M2 16.5h16v1H2v-1z" />
-              </svg>
-              Host Controls
-            </h3>
-
-            {/* Wordlist Upload */}
-            {lobbyId && <WordlistUpload lobbyId={lobbyId} />}
-
-            {/* Start Game Button */}
-            <div>
-              <button
-                onClick={handleStartGame}
-                disabled={!canStartGame}
-                className={`w-full py-4 px-6 font-semibold text-lg rounded-xl transition-all duration-200 ${
-                  canStartGame
-                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white transform hover:scale-[1.02] shadow-lg shadow-green-500/25'
-                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                Start Game
-              </button>
-              {!canStartGame && (
-                <p className="text-gray-500 text-sm text-center mt-2">
-                  {!redSpymaster || !blueSpymaster
-                    ? 'Each team needs a Spymaster to start'
-                    : redTeam.length < 2 || blueTeam.length < 2
-                    ? 'Each team needs at least 2 players'
-                    : 'Configure teams to start'}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Non-host waiting message */}
-        {!isHost && (
-          <div className="text-center py-8">
-            <div className="inline-flex items-center gap-3 px-6 py-4 bg-gray-800/50 border border-gray-700 rounded-xl">
-              <svg
-                className="w-6 h-6 text-purple-400 animate-pulse"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <span className="text-gray-300">Waiting for host to start the game...</span>
-            </div>
-          </div>
+              Start Game
+            </Button>
+            {!canStartGame && (
+              <p className="text-xs font-medium text-text-secondary uppercase tracking-wide opacity-70">
+                Requires 2+ players per team & spymasters assigned
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-text-secondary animate-pulse text-sm uppercase tracking-widest">
+            Waiting for host to start...
+          </p>
         )}
       </div>
     </div>

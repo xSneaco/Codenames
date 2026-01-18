@@ -1,4 +1,9 @@
-import React, { useState, useEffect } from 'react';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Button, Input, Avatar, Card, CardBody } from '@heroui/react';
+import { User } from 'lucide-react';
+import { colors } from '@/styles/colors';
 
 interface UsernameModalProps {
   isOpen: boolean;
@@ -9,7 +14,6 @@ const UsernameModal: React.FC<UsernameModalProps> = ({ isOpen, onSubmit }) => {
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Load saved username from localStorage on mount
   useEffect(() => {
     const savedUsername = localStorage.getItem('codenames_username');
     if (savedUsername) {
@@ -37,7 +41,6 @@ const UsernameModal: React.FC<UsernameModalProps> = ({ isOpen, onSubmit }) => {
       return;
     }
 
-    // Save to localStorage
     localStorage.setItem('codenames_username', trimmedUsername);
     setError(null);
     onSubmit(trimmedUsername);
@@ -46,66 +49,74 @@ const UsernameModal: React.FC<UsernameModalProps> = ({ isOpen, onSubmit }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+      <Card
+        className="max-w-md w-full bg-[#151921] border border-white/10 shadow-2xl"
+      >
+        <CardBody className="p-8 gap-6">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div className="flex flex-col items-center">
+              <div className="w-20 h-20 rounded-full bg-accent-main p-0.5 mb-4 shadow-none">
+                 <div className="w-full h-full rounded-full bg-[#151921] flex items-center justify-center border-4 border-transparent">
+                    <User size={32} className="text-white" />
+                 </div>
+              </div>
 
-      {/* Modal */}
-      <div className="relative bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-700">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-            <svg
-              className="w-8 h-8 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-              />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-white">Welcome to Codenames!</h2>
-          <p className="text-gray-400 mt-2">Enter your name to continue</p>
-        </div>
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-black text-white">
+                  Identification
+                </h2>
+                <p className="text-text-secondary text-sm">
+                  Enter your codename to join the operation
+                </p>
+              </div>
+            </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => {
-                setUsername(e.target.value);
-                setError(null);
-              }}
-              placeholder="Your name"
-              autoFocus
-              maxLength={20}
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-center text-lg"
-            />
-            {error && (
-              <p className="mt-2 text-red-400 text-sm text-center">{error}</p>
-            )}
-          </div>
+            <div className="space-y-4">
+               <div>
+                  <Input
+                    value={username}
+                    onValueChange={(val) => {
+                      setUsername(val);
+                      setError(null);
+                    }}
+                    placeholder="E.g. Agent Smith"
+                    autoFocus
+                    maxLength={20}
+                    size="lg"
+                    variant="bordered"
+                    classNames={{
+                      inputWrapper: "bg-black/20 border-white/10 hover:border-accent-main focus-within:border-accent-main h-14 transition-colors",
+                      input: "text-white text-lg text-center font-bold",
+                    }}
+                  />
+                  {error && (
+                    <p className="text-red-500 text-xs text-center mt-2 font-medium bg-red-500/10 py-1 rounded">
+                      {error}
+                    </p>
+                  )}
+               </div>
 
-          <button
-            type="submit"
-            className="w-full py-3 px-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02]"
-          >
-            Join Game
-          </button>
-        </form>
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full text-white font-bold h-12 uppercase tracking-wide transition-transform"
+                  style={{
+                    backgroundColor: colors.accent.main,
+                    boxShadow: 'none'
+                  }}
+                  isDisabled={!username.trim()}
+                >
+                  Confirm Identity
+                </Button>
+            </div>
 
-        {/* Footer */}
-        <p className="text-gray-500 text-xs text-center mt-4">
-          Your name will be saved for future games
-        </p>
-      </div>
+            <p className="text-xs text-center text-white/20">
+               By joining you accept the mission parameters.
+            </p>
+          </form>
+        </CardBody>
+      </Card>
     </div>
   );
 };

@@ -1,16 +1,21 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useGameContext } from '../contexts/GameContext';
-import { useSocketContext } from '../contexts/SocketContext';
-import { getLobby } from '../utils/api';
-import { Lobby as LobbyType, Player, GameState, CurrentHint } from '../types';
-import Lobby from '../components/Lobby';
-import GameBoard from '../components/GameBoard';
-import UsernameModal from '../components/UsernameModal';
+'use client';
 
-const LobbyPage: React.FC = () => {
-  const { lobbyId: urlLobbyId } = useParams<{ lobbyId: string }>();
-  const navigate = useNavigate();
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Spinner } from '@heroui/react';
+import { useGameContext } from '@/contexts/GameContext';
+import { useSocketContext } from '@/contexts/SocketContext';
+import { getLobby } from '@/utils/api';
+import { Lobby as LobbyType, Player, GameState, CurrentHint } from '@/types';
+import Lobby from '@/components/Lobby';
+import GameBoard from '@/components/GameBoard';
+import UsernameModal from '@/components/UsernameModal';
+import { colors } from '@/styles/colors';
+
+export default function LobbyPage() {
+  const params = useParams();
+  const urlLobbyId = params.lobbyId as string;
+  const router = useRouter();
 
   const {
     gameState,
@@ -21,7 +26,7 @@ const LobbyPage: React.FC = () => {
     setLobbyId,
     setCurrentHint,
   } = useGameContext();
-  const { socket, isConnected, connect, disconnect } = useSocketContext();
+  const { socket, isConnected, connect } = useSocketContext();
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +48,7 @@ const LobbyPage: React.FC = () => {
   useEffect(() => {
     const checkLobby = async () => {
       if (!urlLobbyId) {
-        navigate('/');
+        router.push('/');
         return;
       }
 
@@ -53,7 +58,6 @@ const LobbyPage: React.FC = () => {
         setLobbyExists(true);
         setLobbyId(urlLobbyId);
 
-        // Initialize state from existing lobby data
         if (lobby.players) {
           setPlayers(lobby.players);
         }
@@ -70,20 +74,16 @@ const LobbyPage: React.FC = () => {
     };
 
     checkLobby();
-  }, [urlLobbyId, navigate, setLobbyId, setPlayers, setGameState]);
+  }, [urlLobbyId, router, setLobbyId, setPlayers, setGameState]);
 
   // Connect to socket when we have username and lobby exists
   useEffect(() => {
     if (username && lobbyExists && !isConnected) {
       connect();
     }
-
-    return () => {
-      // Cleanup handled by socket context
-    };
   }, [username, lobbyExists, isConnected, connect]);
 
-  // Socket event listeners and join - set up listeners BEFORE emitting join
+  // Socket event listeners and join
   useEffect(() => {
     if (!socket) return;
 
@@ -118,7 +118,7 @@ const LobbyPage: React.FC = () => {
     const handleGameStarted = (state: GameState) => {
       console.log('Game started:', state);
       setGameState(state);
-      setCurrentHint(null); // Clear any previous hint
+      setCurrentHint(null);
     };
 
     const handleGameUpdate = (state: GameState) => {
@@ -154,13 +154,8 @@ const LobbyPage: React.FC = () => {
     };
 
     const handleTurnChanged = (data: { currentTurn: 'red' | 'blue' }) => {
-      // We need to use the gameState from useGameContext to update turn
-      // Since this is in a closure, we need to refetch game state or update differently
-      // For now, log and the effect dependencies should handle re-subscription
       console.log('Turn changed to:', data.currentTurn);
-      // Clear the current hint when turn changes
       setCurrentHint(null);
-      // Force a state update by requesting new game state from server
       if (socket && urlLobbyId) {
         socket.emit('getGameState', { lobbyId: urlLobbyId }, (response: { success: boolean; gameState?: GameState }) => {
           if (response.success && response.gameState) {
@@ -172,7 +167,6 @@ const LobbyPage: React.FC = () => {
 
     const handleHintGiven = (data: CurrentHint) => {
       console.log('Hint received:', data);
-      console.log(`Hint from ${data.spymasterName}: "${data.hint}" (${data.number})`);
       setCurrentHint(data);
     };
 
@@ -181,7 +175,7 @@ const LobbyPage: React.FC = () => {
       setError(message);
     };
 
-    // Register event listeners first
+    // Register event listeners
     socket.on('playerJoined', handlePlayerJoined);
     socket.on('playerLeft', handlePlayerLeft);
     socket.on('lobbyState', handleLobbyState);
@@ -195,13 +189,10 @@ const LobbyPage: React.FC = () => {
     socket.on('hintGiven', handleHintGiven);
     socket.on('error', handleError);
 
-    // Then emit join if connected
+    // Emit join if connected
     if (isConnected && username && urlLobbyId && !currentPlayer) {
       console.log('Emitting joinLobby:', { lobbyId: urlLobbyId, playerName: username });
-      socket.emit('joinLobby', {
-        lobbyId: urlLobbyId,
-        playerName: username,
-      });
+      socket.emit('joinLobby', { lobbyId: urlLobbyId, playerName: username });
     }
 
     return () => {
@@ -220,86 +211,55 @@ const LobbyPage: React.FC = () => {
     };
   }, [socket, isConnected, username, urlLobbyId, currentPlayer, setPlayers, setCurrentPlayer, setGameState, setCurrentHint]);
 
-  const handleUsernameSubmit = useCallback((name: string) => {
+  const handleUsernameSubmit = (name: string) => {
     setUsername(name);
     setShowUsernameModal(false);
-  }, []);
-
-  const handleBackToHome = () => {
-    disconnect();
-    navigate('/');
   };
 
-  // Loading state
+  if (showUsernameModal) {
+    return <UsernameModal isOpen={true} onSubmit={handleUsernameSubmit} />;
+  }
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent mb-4" />
-          <p className="text-gray-400">Loading lobby...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0e14] relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
+        <div className="flex flex-col items-center gap-6 z-10">
+          <Spinner size="lg" color="white" />
+          <p className="text-white/50 text-sm uppercase tracking-widest animate-pulse">Establishing Connection...</p>
         </div>
       </div>
     );
   }
 
-  // Error state
-  if (error) {
+  if (error || !lobbyExists) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 mx-auto mb-6 bg-red-500/20 rounded-full flex items-center justify-center">
-            <svg
-              className="w-8 h-8 text-red-500"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clipRule="evenodd"
-              />
-            </svg>
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0e14] relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
+        <div className="flex flex-col items-center gap-6 z-10 max-w-md text-center p-6">
+          <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4 border border-red-500/20">
+             <span className="text-3xl">⚠️</span>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-4">Oops!</h2>
-          <p className="text-gray-400 mb-6">{error}</p>
+          <h2 className="text-3xl font-black text-white">Connection Failed</h2>
+          <p className="text-text-secondary text-lg">
+            {error || 'This lobby frequency does not exist or has been terminated.'}
+          </p>
           <button
-            onClick={handleBackToHome}
-            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl transition-all duration-200"
+            className="mt-4 px-8 py-3 bg-white text-black font-bold uppercase tracking-wider rounded hover:bg-gray-200 transition-colors"
+            onClick={() => router.push('/')}
           >
-            Back to Home
+            Abort Mission
           </button>
         </div>
       </div>
     );
   }
 
-  // Username Modal
-  if (showUsernameModal) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
-        <UsernameModal isOpen={true} onSubmit={handleUsernameSubmit} />
-      </div>
-    );
-  }
-
-  // Connecting state
-  if (!isConnected || !currentPlayer) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent mb-4" />
-          <p className="text-gray-400">Connecting to lobby...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Render Lobby or GameBoard based on game status
+  // Show game board if game is in progress
   if (gameState && gameState.status !== 'waiting') {
     return <GameBoard />;
   }
 
+  // Show lobby for team selection
   return <Lobby />;
-};
-
-export default LobbyPage;
+}

@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
-import { useGameContext } from '../contexts/GameContext';
-import { useSocketContext } from '../contexts/SocketContext';
+'use client';
+
+import { useState } from 'react';
+import { Button, Input, Chip, Card, CardBody } from '@heroui/react';
+import { Star, ArrowRight, Send } from 'lucide-react';
+import { useGameContext } from '@/contexts/GameContext';
+import { useSocketContext } from '@/contexts/SocketContext';
 import WordCard from './WordCard';
 import TeamPanel from './TeamPanel';
 import GameOverModal from './GameOverModal';
+import { colors } from '@/styles/colors';
 
 const GameBoard: React.FC = () => {
   const { gameState, players, currentPlayer, isSpymaster, lobbyId, currentHint } = useGameContext();
@@ -15,8 +20,10 @@ const GameBoard: React.FC = () => {
 
   if (!gameState) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading game...</div>
+      <div
+        className="min-h-screen flex items-center justify-center bg-[#0a0e14]"
+      >
+        <p className="text-white text-xl">Loading game...</p>
       </div>
     );
   }
@@ -33,13 +40,11 @@ const GameBoard: React.FC = () => {
     if (!canClick) return;
 
     if (selectedPosition === position) {
-      // Second click on the same card - submit it
       if (socket && lobbyId) {
         socket.emit('revealWord', { lobbyId, position });
         setSelectedPosition(null);
       }
     } else {
-      // First click - select the card
       setSelectedPosition(position);
     }
   };
@@ -74,7 +79,6 @@ const GameBoard: React.FC = () => {
   };
 
   const getWinReason = (): 'all_words' | 'assassin' => {
-    // Check if assassin was revealed
     const assassinCard = gameState.words.find((w) => w.type === 'assassin');
     if (assassinCard?.revealed) {
       return 'assassin';
@@ -83,233 +87,224 @@ const GameBoard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      {/* Header */}
-      <header className="bg-gray-900/80 border-b border-gray-700 px-4 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-purple-500 to-blue-500">
-            Codenames
-          </h1>
+    <div className="min-h-screen flex flex-col bg-[#0a0e14] relative overflow-x-hidden">
+      {/* Background Texture */}
+      <div className="fixed inset-0 pointer-events-none opacity-5 bg-[url('/noise.png')]" />
 
-          {/* Turn Indicator */}
-          <div className="flex items-center gap-3">
-            <span className="text-gray-400 text-sm hidden sm:inline">Current Turn:</span>
-            <div
-              className={`px-4 py-2 rounded-full font-semibold ${
-                gameState.currentTurn === 'red'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-blue-600 text-white'
-              }`}
-            >
-              {gameState.currentTurn === 'red' ? 'Red' : 'Blue'} Team
-              {isMyTurn && ' (Your Turn)'}
-            </div>
-          </div>
+      {/* Top Bar - Game Info */}
+      <div className="sticky top-0 z-30 w-full bg-[#1a1f29] border-b border-white/5 shadow-lg">
+        <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
 
-          {/* Score */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-red-600" />
-              <span className="text-white font-bold">{gameState.redScore}</span>
-              <span className="text-gray-500">/ {gameState.redTotal}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-blue-600" />
-              <span className="text-white font-bold">{gameState.blueScore}</span>
-              <span className="text-gray-500">/ {gameState.blueTotal}</span>
-            </div>
-          </div>
-        </div>
+          {/* Left: Score & Logo */}
+          <div className="flex items-center gap-6">
+            <h2 className="hidden md:block text-2xl font-black tracking-tighter text-white">
+              CODENAMES
+            </h2>
 
-        {/* Current Hint Display */}
-        {currentHint && (
-          <div className={`mt-3 py-2 px-4 rounded-lg ${
-            currentHint.team === 'red' ? 'bg-red-900/50 border border-red-600' : 'bg-blue-900/50 border border-blue-600'
-          }`}>
-            <div className="max-w-7xl mx-auto flex items-center justify-center gap-4">
-              <span className={`text-sm ${currentHint.team === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
-                {currentHint.spymasterName}:
-              </span>
-              <span className="text-white font-bold text-lg uppercase tracking-wider">
-                "{currentHint.hint}"
-              </span>
-              <span className={`px-3 py-1 rounded-full font-bold ${
-                currentHint.team === 'red' ? 'bg-red-600' : 'bg-blue-600'
-              } text-white`}>
-                {currentHint.number === 0 ? '∞' : currentHint.number}
-              </span>
-            </div>
-          </div>
-        )}
-      </header>
+            <div className="flex items-center gap-4 bg-black/20 rounded-full p-1.5 pr-4 border border-white/5">
+              <div className="flex items-center gap-2">
+                <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${gameState.currentTurn === 'red' ? 'bg-red-600 text-white animate-pulse' : 'bg-white/5 text-text-secondary'}`}>
+                  Red
+                </div>
+                <div className="flex items-center gap-1.5">
+                   <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                   <span className="text-xl font-black text-white leading-none">{gameState.redScore}</span>
+                   <span className="text-xs text-white/30 leading-none">/{gameState.redTotal}</span>
+                </div>
+              </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto p-4 md:p-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Red Team Panel (Left on desktop) */}
-          <div className="lg:w-48 order-2 lg:order-1">
-            <TeamPanel
-              team="red"
-              players={redTeam}
-              isCurrentTurn={gameState.currentTurn === 'red'}
-              wordsRemaining={gameState.redTotal - gameState.redScore}
-            />
-          </div>
+              <div className="w-[1px] h-4 bg-white/10"></div>
 
-          {/* Game Board */}
-          <div className="flex-1 order-1 lg:order-2">
-            {/* 5x5 Grid */}
-            <div className="grid grid-cols-5 gap-2 md:gap-3 mb-6">
-              {gameState.words
-                .sort((a, b) => a.position - b.position)
-                .map((card) => (
-                  <WordCard
-                    key={card.position}
-                    word={card.word}
-                    color={card.type}
-                    isRevealed={card.revealed}
-                    isSpymaster={isSpymaster}
-                    isSelected={selectedPosition === card.position}
-                    onClick={() => handleCardClick(card.position)}
-                    disabled={!canClick || card.revealed}
-                  />
-                ))}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              {/* End Turn Button */}
-              {isMyTurn && gameState.status === 'playing' && (
-                <button
-                  onClick={handleEndTurn}
-                  className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-xl transition-all duration-200"
-                >
-                  End Turn
-                </button>
-              )}
-
-              {/* Role Indicator */}
-              <div className="px-4 py-2 bg-gray-800 rounded-lg border border-gray-700">
-                <span className="text-gray-400 text-sm">You are: </span>
-                <span className="text-white font-medium capitalize">
-                  {currentPlayer?.role || 'Spectator'}
-                </span>
-                {isSpymaster && (
-                  <svg
-                    className="w-4 h-4 text-yellow-400 inline ml-1"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                )}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                   <span className="text-xs text-white/30 leading-none">/{gameState.blueTotal}</span>
+                   <span className="text-xl font-black text-white leading-none">{gameState.blueScore}</span>
+                   <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                </div>
+                <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${gameState.currentTurn === 'blue' ? 'bg-blue-600 text-white animate-pulse' : 'bg-white/5 text-text-secondary'}`}>
+                  Blue
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Spymaster Hint Input */}
-            {isSpymaster && isMyTurn && gameState.status === 'playing' && currentPhase === 'hint' && (
-              <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-                <p className="text-yellow-400 text-sm mb-3 text-center">
-                  <svg
-                    className="w-5 h-5 inline mr-2"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  Give a hint to your team!
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  <input
-                    type="text"
-                    value={hint}
-                    onChange={(e) => setHint(e.target.value)}
-                    placeholder="Enter hint word..."
-                    className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                  />
-                  <select
-                    value={hintNumber}
-                    onChange={(e) => setHintNumber(Number(e.target.value))}
-                    className="px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((n) => (
-                      <option key={n} value={n}>
-                        {n === 0 ? '∞' : n}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handleGiveHint}
-                    disabled={!hint.trim()}
-                    className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Give Hint
-                  </button>
+          {/* Center: Hint Display (Floating) */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md pointer-events-none flex justify-center">
+            {currentHint && (
+              <div
+                className="pointer-events-auto flex items-center gap-3 px-6 py-2 rounded-full shadow-xl animate-bounce-in"
+                style={{
+                  background: currentHint.team === 'red' ? 'rgba(220, 38, 38, 0.95)' : 'rgba(37, 99, 235, 0.95)',
+                  boxShadow: `0 10px 30px -5px ${currentHint.team === 'red' ? 'rgba(220, 38, 38, 0.5)' : 'rgba(37, 99, 235, 0.5)'}`
+                }}
+              >
+                <div className="flex flex-col items-end leading-none">
+                  <span className="text-[10px] uppercase font-bold text-white/70">Hint</span>
+                  <span className="text-white font-black text-lg uppercase tracking-wider">
+                    {currentHint.hint}
+                  </span>
+                </div>
+                <div className="w-[1px] h-8 bg-white/20"></div>
+                <div className="text-3xl font-black text-white">
+                   {currentHint.number === 0 ? '∞' : currentHint.number}
                 </div>
               </div>
             )}
-
-            {/* Spymaster Info (when not their turn) */}
-            {isSpymaster && (!isMyTurn || gameState.status !== 'playing') && (
-              <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-center">
-                <p className="text-yellow-400 text-sm">
-                  <svg
-                    className="w-5 h-5 inline mr-2"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  You are the Spymaster! You can see all card colors.
-                </p>
-              </div>
-            )}
-
-            {/* Operative waiting for hint */}
-            {isOperative && isMyTurn && currentPhase === 'hint' && (
-              <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl text-center">
-                <p className="text-blue-400 text-sm">
-                  <svg
-                    className="w-5 h-5 inline mr-2"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  Waiting for your spymaster to give a hint...
-                </p>
-              </div>
-            )}
           </div>
 
-          {/* Blue Team Panel (Right on desktop) */}
-          <div className="lg:w-48 order-3">
-            <TeamPanel
-              team="blue"
-              players={blueTeam}
-              isCurrentTurn={gameState.currentTurn === 'blue'}
-              wordsRemaining={gameState.blueTotal - gameState.blueScore}
-            />
+          {/* Right: Actions */}
+          <div className="flex items-center gap-3">
+             {/* Role Badge */}
+             <div className="hidden sm:flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                <span className="text-xs text-text-secondary uppercase tracking-wider">Role</span>
+                <span className={`text-sm font-bold capitalize ${isSpymaster ? 'text-yellow-400' : 'text-white'}`}>
+                  {currentPlayer?.role || 'Spectator'}
+                </span>
+                {isSpymaster && <Star size={14} className="text-yellow-400 fill-yellow-400" />}
+             </div>
+
+             {isMyTurn && gameState.status === 'playing' && currentPhase === 'guessing' && (
+                <Button
+                  onPress={handleEndTurn}
+                  color="default"
+                  variant="solid"
+                  className="font-bold bg-white text-black hover:bg-gray-200"
+                  size="sm"
+                  endContent={<ArrowRight size={16} />}
+                >
+                  End Turn
+                </Button>
+              )}
           </div>
         </div>
       </div>
 
+      {/* Main Game Area */}
+      <div className="flex-1 max-w-[1800px] w-full mx-auto p-4 flex flex-col lg:flex-row gap-6 lg:items-start lg:justify-center">
+
+        {/* Red Team Sidebar (Desktop) */}
+        <div className="hidden lg:block w-72 sticky top-24 shrink-0">
+          <TeamPanel
+            team="red"
+            players={redTeam}
+            isCurrentTurn={gameState.currentTurn === 'red'}
+            wordsRemaining={gameState.redTotal - gameState.redScore}
+          />
+        </div>
+
+        {/* Game Board Grid */}
+        <div className="flex-1 flex flex-col items-center w-full max-w-5xl mx-auto">
+
+          {/* Mobile Team Stats (Above Board) */}
+          <div className="lg:hidden w-full grid grid-cols-2 gap-4 mb-4">
+             <TeamPanel
+                team="red"
+                players={redTeam}
+                isCurrentTurn={gameState.currentTurn === 'red'}
+                wordsRemaining={gameState.redTotal - gameState.redScore}
+              />
+              <TeamPanel
+                team="blue"
+                players={blueTeam}
+                isCurrentTurn={gameState.currentTurn === 'blue'}
+                wordsRemaining={gameState.blueTotal - gameState.blueScore}
+              />
+          </div>
+
+          <div className="w-full grid grid-cols-5 gap-2 sm:gap-4 md:gap-5 auto-rows-fr perspective-1000 mb-8">
+            {gameState.words
+              .sort((a, b) => a.position - b.position)
+              .map((card) => (
+                <WordCard
+                  key={card.position}
+                  word={card.word}
+                  color={card.type}
+                  isRevealed={card.revealed}
+                  isSpymaster={isSpymaster}
+                  isSelected={selectedPosition === card.position}
+                  onClick={() => handleCardClick(card.position)}
+                  disabled={!canClick || card.revealed}
+                />
+              ))}
+          </div>
+
+          {/* Spymaster Control Zone */}
+          {isSpymaster && isMyTurn && gameState.status === 'playing' && currentPhase === 'hint' && (
+            <div className="w-full max-w-2xl bg-[#1e232e] border border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+               <div className="flex flex-col gap-4 relative z-10">
+                  <div className="flex items-center justify-between">
+                     <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                       <Star size={20} className="text-yellow-400" />
+                       Spymaster Control
+                     </h3>
+                     <span className="text-xs text-text-secondary uppercase tracking-widest">Your Turn</span>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Type one word hint..."
+                        value={hint}
+                        onValueChange={setHint}
+                        size="lg"
+                        className="font-bold text-lg"
+                        variant="bordered"
+                        classNames={{
+                          inputWrapper: 'bg-black/40 border-white/10 hover:border-white/20 h-14',
+                          input: 'text-white placeholder:text-white/20',
+                        }}
+                      />
+                    </div>
+                    <div className="w-24">
+                      <Input
+                        type="number"
+                        placeholder="#"
+                        value={hintNumber.toString()}
+                        onValueChange={(val) => setHintNumber(Math.min(9, Math.max(0, parseInt(val) || 0)))}
+                        min={0}
+                        max={9}
+                        size="lg"
+                        variant="bordered"
+                        classNames={{
+                          inputWrapper: 'bg-black/40 border-white/10 hover:border-white/20 h-14',
+                          input: 'text-white text-center font-mono text-xl',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    onPress={handleGiveHint}
+                    isDisabled={!hint.trim()}
+                    size="lg"
+                    className="w-full font-bold text-lg uppercase tracking-wider"
+                    style={{
+                      backgroundColor: colors.accent.main,
+                      boxShadow: 'none'
+                    }}
+                  >
+                    Transmit Hint
+                  </Button>
+               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Blue Team Sidebar (Desktop) */}
+        <div className="hidden lg:block w-72 sticky top-24 shrink-0">
+          <TeamPanel
+            team="blue"
+            players={blueTeam}
+            isCurrentTurn={gameState.currentTurn === 'blue'}
+            wordsRemaining={gameState.blueTotal - gameState.blueScore}
+          />
+        </div>
+      </div>
+
       {/* Game Over Modal */}
-      {gameState.status === 'finished' && gameState.winner && (
+      {gameState.status === 'finished' && gameState.winner && showGameOver && (
         <GameOverModal
-          isOpen={showGameOver}
+          isOpen={true}
           winner={gameState.winner}
           reason={getWinReason()}
           onPlayAgain={handlePlayAgain}

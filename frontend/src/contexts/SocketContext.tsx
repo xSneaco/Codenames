@@ -1,3 +1,5 @@
+'use client';
+
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 
@@ -11,7 +13,10 @@ interface SocketContextType {
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
 // Use same origin to go through nginx proxy, avoiding cross-origin WebSocket issues
-const SOCKET_URL = import.meta.env.VITE_WS_URL || window.location.origin;
+const getSocketUrl = () => {
+  if (typeof window === 'undefined') return '';
+  return process.env.NEXT_PUBLIC_WS_URL || window.location.origin;
+};
 
 export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -21,6 +26,8 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const connect = useCallback(() => {
     // Prevent multiple connections
     if (socketRef.current) return;
+
+    const SOCKET_URL = getSocketUrl();
 
     const newSocket = io(SOCKET_URL, {
       autoConnect: false,

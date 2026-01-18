@@ -1,5 +1,7 @@
+'use client';
+
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { GameState, Player, Team, Role, CurrentHint } from '../types';
+import { GameState, Player, Team, Role, CurrentHint } from '@/types';
 
 interface GameContextType {
   gameState: GameState | null;

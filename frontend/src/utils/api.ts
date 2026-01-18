@@ -1,11 +1,16 @@
 import axios, { AxiosInstance } from 'axios';
-import { Lobby } from '../types';
+import { Lobby } from '@/types';
 
 // Use same origin to go through nginx proxy
-const API_URL = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
+const getApiUrl = () => {
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_API_URL || '/api';
+  }
+  return process.env.NEXT_PUBLIC_API_URL || `${window.location.origin}/api`;
+};
 
 const api: AxiosInstance = axios.create({
-  baseURL: API_URL,
+  baseURL: getApiUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
